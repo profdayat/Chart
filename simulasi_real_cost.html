@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi Real Cost Harian Drilldown ECharts</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Load ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    
+    <!-- Dependencies for Bootstrap Date Range Picker -->
+    <!-- Bootstrap CSS (minimal to avoid major clash with Tailwind) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" xintegrity="sha512-jnSuA4Ss2PonefYiBxOf7tXdaae9GeQbJ9GzPD3G4U7ExT7WcVdAifFVgK6zYlWnLaIKWcT9E+5sgDqqT6QqdQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Date Range Picker CSS -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+
+    <style>
+        /* Menggunakan font Inter */
+        :root {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Styling untuk Spinner */
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Custom Input Styling (diterapkan ke form-control juga) */
+        .date-input {
+            padding: 8px 12px !important;
+            border: 1px solid #d1d5db !important;
+            border-radius: 8px !important;
+            font-size: 14px !important;
+            min-width: 140px;
+            color: #1f2937 !important;
+            background-color: #ffffff !important;
+        }
+
+        .date-input:focus {
+            border-color: #3b82f6 !important;
+            outline: none !important;
+            box-shadow: 0 0 0 1px #3b82f6 !important;
+        }
+        
+        .action-button {
+            background-color: #3b82f6;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+
+        .action-button:hover {
+            background-color: #2563eb;
+        }
+
+        .action-button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        /* Icon Simuluasi */
+        .icon-download:before { content: "⬇"; }
+        .icon-bars-alt:before { content: "📊"; }
+        .icon-spinner2:before { content: "🔄"; }
+        .icon-search:before { content: "🔎"; }
+        .icon-arrow-left:before { content: "←"; }
+        .icon-arrow-down22:before { content: "▼"; font-size: 10px; margin-left: 8px; }
+
+        /* Custom Dropdown Styles (Multi-Select & Single-Select) */
+        .select-container {
+            position: relative;
+            display: inline-block;
+            user-select: none;
+            min-width: 120px; /* Lebar minimum untuk View Period */
+        }
+        .select-btn {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .select-btn:hover {
+            border-color: #9ca3af;
+        }
+        .select-list {
+            position: absolute;
+            top: 100%; 
+            left: 0;
+            z-index: 10;
+            min-width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 4px;
+            padding: 4px 0;
+            background-color: white;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            list-style: none;
+            display: none; 
+        }
+        .select-list.open {
+            display: block;
+        }
+        .select-list li {
+            padding: 6px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+        }
+        .select-list li:hover {
+            background-color: #f3f4f6;
+        }
+        .select-list input[type="checkbox"] {
+            margin-right: 8px;
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            accent-color: #3b82f6;
+        }
+        
+        /* Style khusus untuk opsi Pilih Semua */
+        .select-list li.select-all-option {
+            font-weight: 600;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 4px;
+            padding-bottom: 8px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+
+    <!-- Simulasi Real Cost Harian -->
+    <div class="max-w-10xl mx-auto">
+        <div class="bg-white rounded-xl shadow-lg border-t-4 border-blue-500">
+            <div class="p-6 border-b border-gray-200 flex flex-col lg:flex-row justify-between items-start lg:items-center">
+                <h5 class="text-xl font-semibold text-gray-800 flex items-center mb-4 lg:mb-0">
+                    <button id="backButton" class="text-blue-500 hover:text-blue-700 disabled:opacity-50 mr-2 hidden transition duration-150" title="Kembali ke Tampilan Harian">
+                        <i class="icon-arrow-left text-xl"></i>
+                    </button>
+                    <i class="icon-bars-alt mr-2 text-blue-500"></i> <span id="chartTitleText">Harian per Debitur (Cost Pasien vs Obat)</span>
+                    <span class="ml-3">
+                        <button type="button" id="pendapatanDownloadChart" class="p-0 text-blue-500 hover:text-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition duration-150"
+                            data-chart="bar" title="Download Chart">
+                            <i class="icon-download text-lg"></i>
+                        </button>
+                    </span>
+                </h5>
+            
+                <!-- Filter & Date Container (Level 1) -->
+                <div id="dateRangeContainer" class="flex flex-wrap items-end space-x-2">            
+                    
+                    <!-- View Period Dropdown -->
+                    <div class="flex flex-col mb-2 sm:mb-0 relative select-container">
+                        <label class="text-xs font-medium text-gray-500 mb-1">View Period</label>
+                        <div id="view-period-select" class="select-btn" data-target="view-period-list">
+                            <span id="view-period-btn-text">Harian</span>
+                            <span class="icon-arrow-down22"></span>
+                        </div>
+                        <ul class="select-list" id="view-period-list">
+                            <li data-value="daily">Harian</li>
+                            <li data-value="weekly">Mingguan</li>
+                            <li data-value="monthly">Bulanan</li>
+                            <li data-value="quarterly">Triwulanan</li>
+                            <li data-value="semiannual">Semesteran</li>
+                            <li data-value="annual">Tahunan</li>
+                        </ul>
+                    </div>
+
+                    <!-- Level 1 Filter: Debitur -->
+                    <div id="debiturFilterContainer" class="flex flex-col mb-2 sm:mb-0 relative select-container">
+                        <label class="text-xs font-medium text-gray-500 mb-1">Filter Debitur</label>
+                        <div id="debitur-multi-select" class="select-btn" data-target="debitur-list">
+                            <span id="debitur-btn-text">BPJS, Umum (2)</span>
+                            <span class="icon-arrow-down22"></span>
+                        </div>
+                        <ul class="select-list" id="debitur-list">
+                            <!-- Populated by JS -->
+                        </ul>
+                    </div>
+                    
+                    <!-- Rentang Tanggal Input (Daterangepicker) -->
+                    <div id="dateInputContainer" class="flex flex-col mb-2 sm:mb-0">
+                        <label for="dateRangePicker" class="text-xs font-medium text-gray-500 mb-1" id="dateRangeLabel">Rentang Tanggal</label>
+                        <input type="text" id="dateRangePicker" class="form-control date-input" style="width: 250px;">
+                    </div>
+                    
+                </div>
+
+                <!-- Filter Container (Level 2 & 3 - Visible when drilldown) -->
+                <div id="drilldownFilterContainer" class="flex flex-wrap items-end space-x-2 hidden">
+                    <!-- Level 2 Filter: Unit -->
+                    <div id="unitFilterContainer" class="flex flex-col mb-2 sm:mb-0 relative select-container">
+                        <label class="text-xs font-medium text-gray-500 mb-1">Filter Unit</label>
+                        <div id="unit-multi-select" class="select-btn" data-target="unit-list">
+                            <span id="unit-btn-text">Rawat Jalan, Rawat Inap (2)</span>
+                            <span class="icon-arrow-down22"></span>
+                        </div>
+                        <ul class="select-list" id="unit-list"></ul>
+                    </div>
+
+                    <!-- Level 3 Filter: Poli -->
+                    <div id="poliFilterContainer" class="flex flex-col mb-2 sm:mb-0 relative select-container hidden">
+                        <label class="text-xs font-medium text-gray-500 mb-1">Filter Poli</label>
+                        <div id="poli-multi-select" class="select-btn" data-target="poli-list">
+                            <span id="poli-btn-text">Semua Poli (4)</span>
+                            <span class="icon-arrow-down22"></span>
+                        </div>
+                        <ul class="select-list" id="poli-list"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body p-6">
+                <!-- Area Chart ECharts -->
+                <div class="chart-container" style="position: relative; height: 400px; width: 100%;">
+                    <div id="pendapatan-chart" style="height: 100%; width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Simulasi Download -->
+    <div id="download-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+            <h3 class="text-lg font-bold mb-4">Simulasi Download</h3>
+            <p id="download-message" class="text-gray-700">Chart berhasil di-download sebagai gambar PNG.</p>
+            <button onclick="document.getElementById('download-modal').classList.add('hidden'); document.getElementById('download-modal').classList.remove('flex');" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-150">Tutup</button>
+        </div>
+    </div>
+
+    <!-- JQuery, Moment.js, Bootstrap JS (minimized for size) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" xintegrity="sha512-v2CJ7UaYy4JwqLDIrZQL/ZnLwD6y6oQDEyQ6K/WKf3U5vFk3Q7y2J7fC55c8jJ18f3d1bC5t2Xw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js" xintegrity="sha512-h5A0cm9HMglGv4wdfU9T+6mPzT8+R3o7d80E6N6O/YpXJ8t1f/4wQvH5g8f3d1bC5t2Xw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js" xintegrity="sha512-5v/YlM50pY2T5z/3uC/7j7T6I/k5/g+6p2/r085lqD2w6qY/nB1x4FjFzJt2wJg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- Date Range Picker JS -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+
+
+    <script>
+        // ===================================================================
+        // 1. MOCK DATA & GLOBALS
+        // ===================================================================
+
+        const ALL_DEBITURS = ['BPJS', 'Umum', 'Asuransi Lain'];
+        const ALL_UNITS = ['Rawat Jalan', 'Rawat Inap', 'IGD'];
+        const POLI_NAMES = ['Poli Umum', 'Poli Gigi', 'Poli Mata', 'Poli Anak']; 
+        const COST_TYPES = ['Cost Pasien', 'Cost Obat']; 
+        
+        // Kombinasi warna untuk grouped stacked bar (3 Debitur * 2 Cost Type)
+        const DEBITUR_COLORS = {
+            'BPJS - Cost Pasien': '#3b82f6', // Blue (Pasien)
+            'BPJS - Cost Obat': '#93c5fd', // Light Blue (Obat)
+            'Umum - Cost Pasien': '#f59e0b', // Amber (Pasien)
+            'Umum - Cost Obat': '#fcd34d', // Light Amber (Obat)
+            'Asuransi Lain - Cost Pasien': '#10b981', // Emerald (Pasien)
+            'Asuransi Lain - Cost Obat': '#6ee7b7' // Light Emerald (Obat)
+        };
+        // Warna untuk Line Chart Total Cost
+        const TOTAL_COST_LINE_COLOR = '#ef4444'; // Merah
+
+        let echartsInstance = null;
+        let dailyChartData = {}; 
+        let currentLevel = 'main'; // 'main', 'drilldown', atau 'level3'
+        let drilldownContext = { date: null, debtor: null, unit: null }; 
+
+        // GLOBALS UNTUK FILTER MULTI-SELECT & VIEW PERIOD
+        let currentViewPeriod = 'daily'; // 'daily', 'weekly', 'monthly', 'quarterly', 'semiannual', 'annual' 
+        let currentStartDate = '2024-11-01';
+        let currentEndDate = '2024-11-30'; 
+        
+        // DEFAULT SELECTIONS
+        let selectedDebitors = ['BPJS', 'Umum']; 
+        let selectedUnits = ['Rawat Jalan', 'Rawat Inap']; 
+        let selectedPoli = [...POLI_NAMES];   
+
+
+        // Fungsi pembantu untuk mendapatkan nilai tanggal dari global state
+        const getDates = () => {
+            return {
+                start: new Date(currentStartDate + 'T00:00:00'), 
+                end: new Date(currentEndDate + 'T00:00:00')
+            };
+        };
+
+        /**
+         * Fungsi untuk menghasilkan data Real Cost Poli (Level 3)
+         */
+        function generatePoliMockData(totalCost, patientRatio) {
+            const poliBreakdown = {};
+            const poliCount = POLI_NAMES.length;
+            let remainingCost = totalCost;
+
+            POLI_NAMES.forEach((poli, index) => {
+                let poliCost;
+                if (index < poliCount - 1) {
+                    // Berikan proporsi yang wajar untuk Poli
+                    const ratio = 0.2 + Math.random() * 0.1; // 20% - 30% dari totalCost
+                    poliCost = Math.round(Math.min(remainingCost, totalCost * ratio));
+                } else {
+                    // Poli terakhir mengambil sisanya
+                    poliCost = remainingCost;
+                }
+                
+                poliCost = Math.max(0, poliCost);
+
+                const poliCostPasien = Math.round(poliCost * patientRatio);
+                const poliCostObat = poliCost - poliCostPasien;
+
+                poliBreakdown[poli] = {
+                    'Cost Pasien': poliCostPasien,
+                    'Cost Obat': poliCostObat
+                };
+
+                remainingCost -= poliCost;
+            });
+
+            return poliBreakdown;
+        }
+
+
+        /**
+         * Fungsi untuk menghasilkan data Real Cost harian secara acak dan mengagregasinya.
+         */
+        function generateDailyMockData(startDate, endDate) {
+            const dateMap = {};
+            let currentDate = moment(startDate);
+            const endMoment = moment(endDate);
+
+            // 1. Generate Data Level Harian mentah (simulasi data transaksi)
+            while (currentDate.isSameOrBefore(endMoment, 'day')) {
+                const dateLabel = currentDate.format('YYYY-MM-DD');
+                dateMap[dateLabel] = {};
+
+                ALL_DEBITURS.forEach(debtor => { // Gunakan ALL_DEBITURS untuk memastikan data mentah lengkap
+                    let base = 100;
+                    if (debtor === 'BPJS') base = 150;
+                    if (debtor === 'Umum') base = 90;
+                    if (debtor === 'Asuransi Lain') base = 50;
+
+                    const dailyTotal = Math.round(base + (Math.random() * 100));
+                    const patientRatio = 0.6 + Math.random() * 0.15; 
+                    const costPasienTotal = Math.round(dailyTotal * patientRatio);
+                    const costObatTotal = dailyTotal - costPasienTotal;
+                    
+                    dateMap[dateLabel][debtor] = {
+                        'Cost Pasien': costPasienTotal,
+                        'Cost Obat': costObatTotal,
+                        'unitBreakdown': {}
+                    };
+                    
+                    // Generate Unit Breakdown
+                    // Berikan porsi besar ke Rawat Jalan (untuk demo poli breakdown)
+                    let p1 = 0.6 + Math.random() * 0.1; // Rawat Jalan (60% - 70%)
+                    let p2 = Math.random() * (0.3); // Rawat Inap (0% - 30%)
+                    
+                    // Pastikan total tidak melebihi 1
+                    if (p1 + p2 > 1) {
+                         p2 = 1 - p1 - (Math.random() * 0.1); // Adjust p2 if too big
+                    }
+                    let p3 = 1 - p1 - p2; // IGD (sisanya)
+                    
+                    // Normalisasi untuk memastikan total mendekati 1
+                    const totalRatio = p1 + p2 + p3;
+                    p1 /= totalRatio;
+                    p2 /= totalRatio;
+                    p3 /= totalRatio;
+
+                    const unitRatios = { 'Rawat Jalan': p1, 'Rawat Inap': p2, 'IGD': p3 };
+                    
+                    let totalCheck = 0; 
+                    ALL_UNITS.forEach((unit, index) => { // Gunakan ALL_UNITS
+                        const ratio = unitRatios[unit];
+                        let unitTotalCost;
+
+                        if (index < ALL_UNITS.length - 1) {
+                            unitTotalCost = Math.round(dailyTotal * ratio);
+                            totalCheck += unitTotalCost;
+                        } else {
+                            unitTotalCost = dailyTotal - totalCheck;
+                        }
+
+                        const unitCostPasien = Math.round(unitTotalCost * patientRatio);
+                        
+                        // Perhitungan ulang costPasien dan costObat agar total unit cost sesuai
+                        const ratioPatient = 0.7 + Math.random() * 0.1; // 70%-80% pasien
+                        const finalCostPasien = Math.round(unitTotalCost * ratioPatient);
+                        const finalCostObat = unitTotalCost - finalCostPasien;
+
+                        dateMap[dateLabel][debtor].unitBreakdown[unit] = {
+                            'Cost Pasien': finalCostPasien,
+                            'Cost Obat': finalCostObat
+                        };
+
+                        if (unit === 'Rawat Jalan') {
+                            // GENERATE POLI DATA HANYA UNTUK RAWAT JALAN
+                            dateMap[dateLabel][debtor].unitBreakdown[unit].poliBreakdown = generatePoliMockData(unitTotalCost, patientRatio);
+                        }
+                    });
+                });
+
+                currentDate.add(1, 'day');
+            }
+            
+            // 2. Agregasi Data Berdasarkan View Period
+            const aggregatedData = {}; // Format: { label: { debtor: { 'Cost Pasien': X, 'Cost Obat': Y, 'unitBreakdown': {...} } } }
+            const dailyLabels = Object.keys(dateMap).sort();
+
+            dailyLabels.forEach(date => {
+                let aggregationKey;
+                let m = moment(date);
+
+                if (currentViewPeriod === 'daily') {
+                    aggregationKey = m.format('YYYY-MM-DD');
+                } else if (currentViewPeriod === 'weekly') {
+                    // Label: Week 1 Nov (2024-11-01 - 2024-11-07)
+                    const weekStart = m.clone().startOf('isoWeek').format('YYYY-MM-DD');
+                    const weekEnd = m.clone().endOf('isoWeek').format('MM-DD');
+                    aggregationKey = `W${m.isoWeek()} ${m.format('MMM')} (${weekStart} - ${weekEnd})`;
+                } else if (currentViewPeriod === 'monthly') {
+                    aggregationKey = m.format('YYYY-MM');
+                } else if (currentViewPeriod === 'quarterly') {
+                    aggregationKey = m.format('YYYY-[Q]Q');
+                } else if (currentViewPeriod === 'semiannual') { 
+                    const year = m.year();
+                    const month = m.month(); // 0-11
+                    const semester = month < 6 ? 'S1' : 'S2';
+                    aggregationKey = `${year}-${semester}`;
+                } else if (currentViewPeriod === 'annual') { 
+                    aggregationKey = m.format('YYYY');
+                }
+
+                if (!aggregatedData[aggregationKey]) {
+                    aggregatedData[aggregationKey] = {};
+                    ALL_DEBITURS.forEach(d => { // Gunakan ALL_DEBITURS untuk basis agregasi
+                        aggregatedData[aggregationKey][d] = { 'Cost Pasien': 0, 'Cost Obat': 0, 'unitBreakdown': {} };
+                        ALL_UNITS.forEach(u => aggregatedData[aggregationKey][d].unitBreakdown[u] = { 
+                            'Cost Pasien': 0, 
+                            'Cost Obat': 0, 
+                            'poliBreakdown': {} 
+                        });
+                    });
+                }
+
+                // Sum costs
+                ALL_DEBITURS.forEach(debtor => {
+                    const dailyDebtorData = dateMap[date][debtor];
+                    if (dailyDebtorData) {
+                        aggregatedData[aggregationKey][debtor]['Cost Pasien'] += dailyDebtorData['Cost Pasien'];
+                        aggregatedData[aggregationKey][debtor]['Cost Obat'] += dailyDebtorData['Cost Obat'];
+                        
+                        // Sum unit breakdown (Termasuk Poli Breakdown)
+                        ALL_UNITS.forEach(unit => {
+                            const dailyUnitData = dailyDebtorData.unitBreakdown[unit];
+                            if (dailyUnitData) {
+                                aggregatedData[aggregationKey][debtor].unitBreakdown[unit]['Cost Pasien'] += dailyUnitData['Cost Pasien'];
+                                aggregatedData[aggregationKey][debtor].unitBreakdown[unit]['Cost Obat'] += dailyUnitData['Cost Obat'];
+                                
+                                // Agregasi Poli Breakdown jika ada (hanya Rawat Jalan)
+                                if (unit === 'Rawat Jalan' && dailyUnitData.poliBreakdown) {
+                                    POLI_NAMES.forEach(poli => {
+                                        if (!aggregatedData[aggregationKey][debtor].unitBreakdown[unit].poliBreakdown[poli]) {
+                                             aggregatedData[aggregationKey][debtor].unitBreakdown[unit].poliBreakdown[poli] = { 'Cost Pasien': 0, 'Cost Obat': 0 };
+                                        }
+                                        const dailyPoliData = dailyUnitData.poliBreakdown[poli];
+                                        if (dailyPoliData) {
+                                            aggregatedData[aggregationKey][debtor].unitBreakdown[unit].poliBreakdown[poli]['Cost Pasien'] += dailyPoliData['Cost Pasien'];
+                                            aggregatedData[aggregationKey][debtor].unitBreakdown[unit].poliBreakdown[poli]['Cost Obat'] += dailyPoliData['Cost Obat'];
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                    }
+                });
+            });
+
+            // 3. Format Data untuk ECharts
+            const labels = Object.keys(aggregatedData).sort();
+            const datasets = [];
+            const legendData = [];
+            const filteredDebitors = selectedDebitors; // Ambil filter Debitur
+            const totalCostData = []; // Data untuk line chart
+
+            labels.forEach(label => {
+                let totalCostForLabel = 0;
+                
+                filteredDebitors.forEach(debtor => {
+                    COST_TYPES.forEach(costType => {
+                        const total = aggregatedData[label][debtor][costType]; 
+                        
+                        if (filteredDebitors.includes(debtor)) {
+                            // Hitung total hanya dari debitur yang dipilih
+                            totalCostForLabel += total; 
+                        }
+                    });
+                });
+                totalCostData.push(totalCostForLabel);
+            });
+
+
+            filteredDebitors.forEach(debtor => {
+                COST_TYPES.forEach(costType => {
+                    const seriesName = `${debtor} - ${costType}`;
+                    legendData.push(seriesName);
+
+                    const data = labels.map(label => {
+                        // Ambil data dari hasil agregasi (yang berisi ALL_DEBITURS), tapi hanya jika debtor dipilih
+                        const total = aggregatedData[label][debtor][costType]; 
+                        return {
+                            value: total,
+                            // Simpan konteks untuk drilldown
+                            drilldownContext: {
+                                label: label, 
+                                period: currentViewPeriod
+                            } 
+                        };
+                    });
+
+                    datasets.push({
+                        name: seriesName,
+                        type: 'bar',
+                        stack: `${debtor}_Stack`, 
+                        emphasis: { focus: 'series' },
+                        data: data,
+                        itemStyle: {
+                            color: DEBITUR_COLORS[seriesName]
+                        }
+                    });
+                });
+            });
+            
+            // Tambahkan series untuk Total Cost (Line Chart)
+            datasets.push({
+                name: 'Total Real Cost',
+                type: 'line',
+                yAxisIndex: 1, // Menggunakan sumbu Y kedua (index 1)
+                data: totalCostData.map(val => ({ value: val })),
+                itemStyle: {
+                    color: TOTAL_COST_LINE_COLOR
+                },
+                lineStyle: {
+                    width: 3
+                },
+                symbol: 'circle',
+                symbolSize: 6,
+                emphasis: { focus: 'series' }
+            });
+
+            legendData.push('Total Real Cost');
+
+            // 4. Transformasi unitBreakdown untuk Drilldown
+            const newUnitBreakdown = {};
+            labels.forEach(label => {
+                newUnitBreakdown[label] = aggregatedData[label];
+            });
+
+
+            return { labels, datasets, unitBreakdown: newUnitBreakdown, legendData };
+        }
+
+        // ===================================================================
+        // 2. LOGIKA CHART ECHARTS (Level 1: Harian/Periode Grouped Stacked + Line)
+        // ===================================================================
+
+        function getDailyChartOption(labels, datasets, legendData) {
+            return {
+                title: { show: false },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: function (params) {
+                        let date = params[0].name;
+                        let tooltipHtml = `<b>${date}</b><br/>`;
+                        
+                        const debtorGroups = {};
+                        let totalCost = 0;
+                        
+                        params.forEach(item => {
+                            if (item.seriesName === 'Total Real Cost') {
+                                totalCost = item.value;
+                                return; // Skip line series for grouping
+                            }
+                            
+                            const [debtor, costType] = item.seriesName.split(' - ');
+                            if (!debtorGroups[debtor]) {
+                                debtorGroups[debtor] = { total: 0, items: [] };
+                            }
+                            if (typeof item.value === 'number') { 
+                                debtorGroups[debtor].total += item.value;
+                                debtorGroups[debtor].items.push(item);
+                            }
+                        });
+
+                        // Tampilkan Total Cost di bagian atas
+                        tooltipHtml += `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${TOTAL_COST_LINE_COLOR};"></span>
+                                        <strong>Total Real Cost: Rp ${totalCost.toLocaleString('id-ID')} Jt</strong><br/>`;
+                        tooltipHtml += `<hr class="my-1 border-gray-300"/>`;
+
+                        const sortedDebitors = Object.keys(debtorGroups).sort((a, b) => debtorGroups[b].total - debtorGroups[a].total);
+
+                        sortedDebitors.forEach(debtor => {
+                            const group = debtorGroups[debtor];
+                            if (group.total > 0) {
+                                tooltipHtml += `<strong>${debtor} (Total: Rp ${group.total.toLocaleString('id-ID')} Jt)</strong><br/>`;
+                                
+                                group.items.forEach(item => {
+                                    if (typeof item.value === 'number' && item.value > 0) {
+                                        tooltipHtml += `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${item.color};"></span>
+                                                        ${item.seriesName.split(' - ')[1]}: <b>Rp ${item.value.toLocaleString('id-ID')} Jt</b><br/>`;
+                                    }
+                                });
+                                tooltipHtml += `<span class="text-xs text-blue-500 font-semibold">Klik untuk detail Unit</span><br/>`;
+                            }
+                        });
+                        
+                        return tooltipHtml;
+                    }
+                },
+                legend: {
+                    data: legendData, 
+                    bottom: 0,
+                    type: 'scroll'
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%', // Diperluas untuk mengakomodasi Y2 axis
+                    bottom: '10%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: labels,
+                    axisLabel: {
+                        interval: Math.max(0, Math.floor(labels.length / 7) - 1),
+                        rotate: 30
+                    }
+                },
+                yAxis: [
+                    // Y1 Axis (Bar Chart - Kiri)
+                    {
+                        type: 'value',
+                        name: 'Cost Detail (Juta IDR)',
+                        position: 'left',
+                        axisLabel: {
+                            formatter: 'Rp {value} Jt'
+                        }
+                    },
+                    // Y2 Axis (Line Chart - Kanan)
+                    {
+                        type: 'value',
+                        name: 'Total Cost (Juta IDR)',
+                        position: 'right',
+                        axisLabel: {
+                            formatter: 'Rp {value} Jt'
+                        },
+                        // Pastikan Y2 memiliki rentang yang sesuai dengan Y1 (atau lebih besar)
+                        min: 0,
+                        // max: 'dataMax' // Biarkan ECharts menentukan Max
+                    }
+                ],
+                series: datasets
+            };
+        }
+
+        /**
+         * Menggambar atau memperbarui Chart ECharts ke Level 1 (Harian Grouped Stacked)
+         */
+        function updatePendapatanChart() {
+            currentLevel = 'main';
+            // selectedUnits = ALL_UNITS; // Tidak perlu reset di sini, karena unit filter hanya aktif di level 2
+            selectedPoli = [...POLI_NAMES]; 
+
+            const dates = getDates();
+            const { start, end } = dates;
+
+            if (selectedDebitors.length === 0) {
+                 alert("Pilih minimal satu Debitur untuk menampilkan data.");
+                 echartsInstance?.clear();
+                 document.getElementById('chartTitleText').textContent = 'Real Cost Harian per Debitur (Cost Pasien vs Obat)';
+                 document.getElementById('backButton').classList.add('hidden');
+                 document.getElementById('dateRangeContainer').classList.remove('hidden');
+                 document.getElementById('drilldownFilterContainer').classList.add('hidden');
+                 return;
+            }
+
+            if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+                alert("Rentang tanggal tidak valid. Mohon periksa kembali.");
+                return;
+            }
+
+            // Data mentah dibuat dari ALL_DEBITURS, data yang ditampilkan difilter oleh selectedDebitors
+            dailyChartData = generateDailyMockData(start, end);
+            console.log(`[CHART] Generating data for period: ${currentViewPeriod}. Filtered Debitors: ${selectedDebitors.join(', ')}`);
+
+            const chartDom = document.getElementById('pendapatan-chart');
+            if (!echartsInstance) {
+                echartsInstance = echarts.init(chartDom);
+            }
+            
+            const { labels, datasets, legendData } = dailyChartData;
+            const option = getDailyChartOption(labels, datasets, legendData);
+            echartsInstance.setOption(option, true);
+            
+            // Perbarui label sesuai dengan View Period
+            //let periodLabel = currentViewPeriod.charAt(0).toUpperCase() + currentViewPeriod.slice(1).replace('ly', 'an').replace('terly', 'anan').replace('annual', 'an');
+            
+            // if (period === 'daily') return 'Harian';
+            //     if (period === 'weekly') return 'Mingguan';
+            //     if (period === 'monthly') return 'Bulanan';
+            //     if (period === 'quarterly') return 'Triwulanan';
+            //     if (period === 'semiannual') return 'Semesteran';
+            //     if (period === 'annual') return 'Tahunan';
+            
+            if (currentViewPeriod === 'daily') periodLabel = 'Harian';
+            if (currentViewPeriod === 'weekly') periodLabel = 'Mingguan';
+            if (currentViewPeriod === 'monthly') periodLabel = 'Bulanan';
+            if (currentViewPeriod === 'quarterly') periodLabel = 'Triwulanan';
+            if (currentViewPeriod === 'semiannual') periodLabel = 'Semesteran';
+            if (currentViewPeriod === 'annual') periodLabel = 'Tahunan';
+            
+            document.getElementById('chartTitleText').textContent = `Real Cost ${periodLabel} per Debitur (Cost Detail vs Total Cost)`;
+            document.getElementById('backButton').classList.add('hidden');
+            document.getElementById('dateRangeContainer').classList.remove('hidden');
+            document.getElementById('drilldownFilterContainer').classList.add('hidden');
+
+            echartsInstance.off('click'); 
+            echartsInstance.on('click', function (params) {
+                // Jangan izinkan drilldown jika yang diklik adalah series Total Real Cost
+                if (!params.seriesName || params.seriesName === 'Total Real Cost') return; 
+
+                const fullSeriesName = params.seriesName;
+                const debtor = fullSeriesName.split(' - ')[0]; 
+                const label = params.name;
+
+                // Hanya izinkan drilldown jika Debitur tersebut yang diklik, dan Debitur tersebut dipilih
+                if (selectedDebitors.includes(debtor)) {
+                    // Gunakan data agregasi (dailyChartData.unitBreakdown[label]) untuk drilldown
+                    showUnitBreakdownChart(label, debtor); 
+                }
+            });
+
+            window.addEventListener('resize', echartsInstance.resize);
+        }
+
+        // ===================================================================
+        // 3. LOGIKA CHART ECHARTS (Level 2: Unit Breakdown - Stacked Pasien vs Obat)
+        // ===================================================================
+
+        function getUnitBreakdownOption(label, debtor, breakdownData) {
+            // breakdownData adalah data agregat untuk Unit pada label tertentu
+            const filteredUnitNames = ALL_UNITS.filter(unit => selectedUnits.includes(unit)); // Gunakan ALL_UNITS
+
+            if (filteredUnitNames.length === 0) {
+                return null;
+            }
+            
+            // FIX: Tambahkan pemeriksaan null/undefined untuk memastikan data Unit tersedia
+            const costPasienData = filteredUnitNames.map(unit => breakdownData[unit] ? breakdownData[unit]['Cost Pasien'] : 0);
+            const costObatData = filteredUnitNames.map(unit => breakdownData[unit] ? breakdownData[unit]['Cost Obat'] : 0);
+
+            const pasienColor = DEBITUR_COLORS[`${debtor} - Cost Pasien`];
+            const obatColor = DEBITUR_COLORS[`${debtor} - Cost Obat`];
+
+            return {
+                title: { show: false },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: function (params) {
+                        const unit = params[0].name;
+                        let unitTotal = 0;
+                        let tooltipHtml = `<b>${unit} (${debtor})</b><br/>`;
+
+                        params.forEach(item => {
+                            if (typeof item.value === 'number' && item.value > 0) {
+                                unitTotal += item.value;
+                                tooltipHtml += `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${item.color};"></span>
+                                                ${item.seriesName}: <b>Rp ${item.value.toLocaleString('id-ID')} Jt</b><br/>`;
+                            }
+                        });
+                        
+                        tooltipHtml += `<hr class="my-1 border-gray-300"/>Total Real Cost: <b>Rp ${unitTotal.toLocaleString('id-ID')} Jt</b>`;
+                        
+                        if (unit === 'Rawat Jalan') {
+                            tooltipHtml += `<br/><span class="text-xs text-blue-500 font-semibold">Klik untuk detail Poli</span>`;
+                        }
+
+                        return tooltipHtml;
+                    }
+                },
+                legend: {
+                    data: COST_TYPES, 
+                    bottom: 0
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '10%', 
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: filteredUnitNames,
+                    axisLabel: { rotate: 0 }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'Real Cost (Juta IDR)',
+                    axisLabel: {
+                        formatter: 'Rp {value} Jt'
+                    }
+                },
+                series: [
+                    {
+                        name: 'Cost Pasien',
+                        type: 'bar',
+                        stack: 'UnitStack', 
+                        data: costPasienData,
+                        barWidth: '50%',
+                        itemStyle: { color: pasienColor },
+                        label: { show: false }
+                    },
+                    {
+                        name: 'Cost Obat',
+                        type: 'bar',
+                        stack: 'UnitStack', 
+                        data: costObatData,
+                        barWidth: '50%',
+                        itemStyle: { color: obatColor },
+                        label: { show: false }
+                    }
+                ]
+            };
+        }
+
+        /**
+         * Menampilkan Chart Level 2 (Unit Breakdown)
+         */
+        function showUnitBreakdownChart(label, debtor) {
+            currentLevel = 'drilldown';
+            drilldownContext = { label, debtor, unit: null }; 
+            
+            // Dapatkan data agregat unit breakdown untuk label tertentu dari dailyChartData
+            const debtorData = dailyChartData.unitBreakdown[label]?.[debtor];
+            if (!debtorData || !debtorData.unitBreakdown) {
+                console.error(`[DRILLDOWN] Data unit breakdown untuk ${debtor} pada ${label} tidak ditemukan.`);
+                return;
+            }
+            const breakdownData = debtorData.unitBreakdown;
+
+
+            // Inisialisasi filter Unit (menggunakan ALL_UNITS)
+            setupMultiSelect('unit', ALL_UNITS, selectedUnits, (newSelection) => {
+                selectedUnits = newSelection;
+                showUnitBreakdownChart(label, debtor); // Redraw Level 2
+            });
+
+            const option = getUnitBreakdownOption(label, debtor, breakdownData);
+            
+            if (!option) {
+                alert(`Pilih minimal satu Unit untuk melihat breakdown ${debtor} pada ${label}.`);
+                echartsInstance.clear();
+                document.getElementById('chartTitleText').textContent = `${debtor} - Real Cost Unit Breakdown pada ${label} (Pasien vs Obat)`;
+                // Atur visibilitas filter
+                document.getElementById('unitFilterContainer').classList.remove('hidden');
+                document.getElementById('poliFilterContainer').classList.add('hidden');
+                return;
+            }
+
+            echartsInstance.setOption(option, true);
+
+            document.getElementById('chartTitleText').textContent = `${debtor} - Real Cost Unit Breakdown pada ${label} (Pasien vs Obat)`;
+            document.getElementById('backButton').classList.remove('hidden');
+            document.getElementById('dateRangeContainer').classList.add('hidden'); 
+            document.getElementById('drilldownFilterContainer').classList.remove('hidden');
+            document.getElementById('unitFilterContainer').classList.remove('hidden'); // Tampilkan filter Unit
+            document.getElementById('poliFilterContainer').classList.add('hidden'); // Sembunyikan filter Poli
+
+            echartsInstance.off('click'); 
+            echartsInstance.on('click', function (params) {
+                const clickedUnit = params.name; 
+                // AMBIL DATA POLI DARI DATA AGREGAT UNIT BREAKDOWN
+                const unitData = breakdownData[clickedUnit];
+
+                if (clickedUnit === 'Rawat Jalan' && unitData && unitData.poliBreakdown) {
+                    showPoliBreakdownChart(label, debtor, clickedUnit, unitData.poliBreakdown);
+                } else if (!selectedUnits.includes(clickedUnit)) {
+                    // Cek jika unit tidak termasuk dalam filter, jangan lakukan apa-apa
+                    return; 
+                } else {
+                    alert(`Unit ${clickedUnit} tidak memiliki breakdown Poli.`);
+                }
+            });
+        }
+
+
+        // ===================================================================
+        // 4. LOGIKA CHART ECHARTS (Level 3: Poli Breakdown - Stacked Pasien vs Obat)
+        // ===================================================================
+
+        function getPoliBreakdownOption(label, debtor, unit, poliBreakdownData) {
+            // poliBreakdownData adalah data agregat Level Poli
+            const filteredPoliNames = POLI_NAMES.filter(poli => selectedPoli.includes(poli));
+
+            if (filteredPoliNames.length === 0) {
+                return null;
+            }
+            
+            // Buat data series berdasarkan poliBreakdownData
+            const costPasienData = filteredPoliNames.map(poli => poliBreakdownData[poli] ? poliBreakdownData[poli]['Cost Pasien'] : 0);
+            const costObatData = filteredPoliNames.map(poli => poliBreakdownData[poli] ? poliBreakdownData[poli]['Cost Obat'] : 0);
+
+            const pasienColor = DEBITUR_COLORS[`${debtor} - Cost Pasien`];
+            const obatColor = DEBITUR_COLORS[`${debtor} - Cost Obat`];
+
+            return {
+                title: { show: false },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: function (params) {
+                        const poli = params[0].name;
+                        let poliTotal = 0;
+                        let tooltipHtml = `<b>${poli} (${unit}, ${debtor})</b><br/>`;
+
+                        params.forEach(item => {
+                            if (typeof item.value === 'number' && item.value > 0) {
+                                poliTotal += item.value;
+                                tooltipHtml += `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${item.color};"></span>
+                                                ${item.seriesName}: <b>Rp ${item.value.toLocaleString('id-ID')} Jt</b><br/>`;
+                            }
+                        });
+                        
+                        tooltipHtml += `<hr class="my-1 border-gray-300"/>Total Real Cost: <b>Rp ${poliTotal.toLocaleString('id-ID')} Jt</b>`;
+                        return tooltipHtml;
+                    }
+                },
+                legend: {
+                    data: COST_TYPES, 
+                    bottom: 0
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '10%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: filteredPoliNames,
+                    axisLabel: { rotate: 0 }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'Real Cost (Juta IDR)',
+                    axisLabel: {
+                        formatter: 'Rp {value} Jt'
+                    }
+                },
+                series: [
+                    {
+                        name: 'Cost Pasien',
+                        type: 'bar',
+                        stack: 'PoliStack', 
+                        data: costPasienData,
+                        barWidth: '50%',
+                        itemStyle: { color: pasienColor },
+                        label: { show: false }
+                    },
+                    {
+                        name: 'Cost Obat',
+                        type: 'bar',
+                        stack: 'PoliStack', 
+                        data: costObatData,
+                        barWidth: '50%',
+                        itemStyle: { color: obatColor },
+                        label: { show: false }
+                    }
+                ]
+            };
+        }
+
+
+        /**
+         * Menampilkan Chart Level 3 (Poli Breakdown)
+         */
+        function showPoliBreakdownChart(label, debtor, unit, poliBreakdownData) {
+            currentLevel = 'level3';
+            drilldownContext = { label, debtor, unit }; 
+            
+            // Inisialisasi filter Poli (menggunakan POLI_NAMES)
+            setupMultiSelect('poli', POLI_NAMES, selectedPoli, (newSelection) => {
+                selectedPoli = newSelection;
+                // Redraw Level 3 dengan konteks yang sama
+                showPoliBreakdownChart(label, debtor, unit, poliBreakdownData); 
+            });
+
+            const option = getPoliBreakdownOption(label, debtor, unit, poliBreakdownData);
+            
+            if (!option) {
+                alert(`Pilih minimal satu Poli untuk melihat breakdown ${unit} pada ${label}.`);
+                echartsInstance.clear();
+                document.getElementById('chartTitleText').textContent = `${debtor} - Real Cost Poli Breakdown pada ${unit} (${label})`;
+                return;
+            }
+
+            echartsInstance.setOption(option, true);
+
+            document.getElementById('chartTitleText').textContent = `${debtor} - Real Cost Poli Breakdown pada ${unit} (${label})`;
+            document.getElementById('backButton').classList.remove('hidden');
+            document.getElementById('dateRangeContainer').classList.add('hidden');
+            document.getElementById('drilldownFilterContainer').classList.remove('hidden');
+            
+            // LOGIKA FILTER VISIBILITAS UNTUK LEVEL 3
+            document.getElementById('unitFilterContainer').classList.add('hidden'); // Sembunyikan filter Unit (sudah fixed)
+            document.getElementById('poliFilterContainer').classList.remove('hidden'); // Tampilkan filter Poli
+
+            echartsInstance.off('click');
+        }
+
+
+        // ===================================================================
+        // 5. LOGIKA DOWNLOAD (Simulasi)
+        // ===================================================================
+
+        async function downloadPendapatanChart() {
+            await new Promise(resolve => setTimeout(resolve, 1500)); 
+
+            const modal = document.getElementById('download-modal');
+            const message = document.getElementById('download-message');
+            
+            try {
+                if (echartsInstance) { 
+                    const imageLink = echartsInstance.getDataURL({
+                        type: 'png',
+                        pixelRatio: 2, 
+                        backgroundColor: '#fff'
+                    });
+
+                    let fileName;
+                    if (currentLevel === 'main') {
+                         fileName = `real_cost_${currentViewPeriod}_grouped_stacked_line_${currentStartDate}_${currentEndDate}_debitur_${selectedDebitors.length}.png`;
+                    } else if (currentLevel === 'drilldown') { 
+                        const { label, debtor } = drilldownContext;
+                        fileName = `real_cost_${currentViewPeriod}_${debtor}_${label}_unit_breakdown_${selectedUnits.length}_unit.png`;
+                    } else if (currentLevel === 'level3') { 
+                        const { label, debtor, unit } = drilldownContext;
+                        fileName = `real_cost_${currentViewPeriod}_${debtor}_${label}_${unit.replace(/\s+/g, '_')}_poli_breakdown_${selectedPoli.length}_poli.png`; 
+                    }
+
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = imageLink;
+                    downloadLink.download = fileName;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+
+                    message.textContent = `Chart Real Cost berhasil di-download sebagai PNG.`;
+                } else {
+                    message.textContent = "Gagal men-download: Chart belum siap atau data tidak tersedia.";
+                }
+                
+            } catch (error) {
+                console.error("Error during simulated download:", error);
+                message.textContent = "Terjadi kesalahan saat mencoba men-download chart.";
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+
+        // ===================================================================
+        // 6. INITIALIZATION & EVENT LISTENERS
+        // ===================================================================
+
+        /**
+         * Menyesuaikan label dan rentang tanggal untuk Date Range Picker
+         */
+        function updateDateRangeForPeriod() {
+            const labelEl = document.getElementById('dateRangeLabel');
+            let labelText;
+            let format = 'DD/MM/YYYY';
+
+            const mEnd = moment(currentEndDate);
+            let mStart = moment(currentStartDate);
+
+            // Logic untuk mengatur default rentang tanggal yang wajar
+            if (currentViewPeriod === 'daily' || currentViewPeriod === 'weekly') {
+                labelText = 'Rentang Tanggal';
+                format = 'DD/MM/YYYY';
+                if (currentViewPeriod === 'weekly' && mEnd.diff(mStart, 'days') > 90) { 
+                    mStart = mEnd.clone().subtract(89, 'days');
+                }
+            } else if (currentViewPeriod === 'monthly') {
+                labelText = 'Rentang Bulan';
+                format = 'MM/YYYY';
+                if (mEnd.diff(mStart, 'months') > 17) {
+                    mStart = mEnd.clone().subtract(17, 'months').startOf('month');
+                }
+            } else if (currentViewPeriod === 'quarterly') {
+                labelText = 'Rentang Triwulan';
+                format = 'MM/YYYY';
+                if (mEnd.diff(mStart, 'years') > 3) {
+                    mStart = mEnd.clone().subtract(11, 'quarters').startOf('quarter');
+                }
+            } else if (currentViewPeriod === 'semiannual') { 
+                labelText = 'Rentang Semester';
+                format = 'MM/YYYY';
+                if (mEnd.diff(mStart, 'years') > 5) {
+                    mStart = mEnd.clone().subtract(9, 'semiannuals').startOf('month');
+                }
+            } else if (currentViewPeriod === 'annual') { 
+                labelText = 'Rentang Tahun';
+                format = 'YYYY';
+                 if (mEnd.diff(mStart, 'years') > 10) {
+                    mStart = mEnd.clone().subtract(9, 'years').startOf('year');
+                }
+            }
+            
+            currentStartDate = mStart.format('YYYY-MM-DD');
+            currentEndDate = mEnd.format('YYYY-MM-DD');
+
+            labelEl.textContent = labelText;
+            initializeDatePicker(format);
+        }
+
+        /**
+         * Menginisialisasi Bootstrap Date Range Picker
+         */
+        function initializeDatePicker(format = 'DD/MM/YYYY') {
+            const startMoment = moment(currentStartDate);
+            const endMoment = moment(currentEndDate);
+            
+            const isYearly = currentViewPeriod === 'annual';
+            
+            // Konfigurasi khusus untuk input tahunan
+            const datePickerOptions = {
+                startDate: startMoment,
+                endDate: endMoment,
+                opens: 'left',
+                locale: {
+                    format: format,
+                    separator: ' - ',
+                    applyLabel: 'Pilih',
+                    cancelLabel: 'Batal',
+                    fromLabel: 'Dari',
+                    toLabel: 'Sampai',
+                    customRangeLabel: 'Rentang Kustom',
+                    daysOfWeek: ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'],
+                    monthNames: ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],
+                    firstDay: 1
+                },
+                // Atur view mode untuk tahunan
+                minViewMode: isYearly ? 'years' : 'days', 
+                maxViewMode: 'years' 
+            };
+            
+            // Hapus daterangepicker sebelumnya jika ada
+            if ($('#dateRangePicker').data('daterangepicker')) {
+                $('#dateRangePicker').data('daterangepicker').remove();
+            }
+
+            $('#dateRangePicker').daterangepicker(datePickerOptions, function(start, end, label) {
+                // Untuk tahunan, pastikan kita mengambil awal dan akhir tahun
+                if (isYearly) {
+                    currentStartDate = start.startOf('year').format('YYYY-MM-DD');
+                    currentEndDate = end.endOf('year').format('YYYY-MM-DD');
+                } else {
+                    currentStartDate = start.format('YYYY-MM-DD');
+                    currentEndDate = end.format('YYYY-MM-DD');
+                }
+                updatePendapatanChart(); // Trigger chart update on date change
+            });
+
+            // Set the initial value display
+            $('#dateRangePicker').val(`${startMoment.format(format)} - ${endMoment.format(format)}`);
+            
+        }
+        
+        /**
+         * Menginisialisasi Dropdown Multi-Select Kustom
+         * @param {string} idPrefix - 'debitur', 'unit', atau 'poli'
+         * @param {Array<string>} allItems - Semua item yang tersedia (misal: ALL_DEBITURS)
+         * @param {Array<string>} initialSelection - Pilihan saat ini (misal: selectedDebitors)
+         * @param {function(Array<string>): void} callback - Fungsi yang dipanggil saat ada perubahan
+         */
+        function setupMultiSelect(idPrefix, allItems, initialSelection, callback) {
+            const listEl = document.getElementById(`${idPrefix}-list`);
+            const btnEl = document.getElementById(`${idPrefix}-multi-select`);
+            
+            listEl.innerHTML = '';
+            
+            // --- 1. Tambahkan Opsi "Pilih Semua" (Select All) ---
+            const selectAllItem = document.createElement('li');
+            selectAllItem.classList.add('select-all-option');
+            selectAllItem.innerHTML = `
+                <input type="checkbox" id="${idPrefix}-all" value="all">
+                <label for="${idPrefix}-all" class="w-full">Semua Pilihan</label>
+            `;
+            listEl.appendChild(selectAllItem);
+            
+            const selectAllCheckbox = selectAllItem.querySelector('input');
+            
+            // Tentukan status awal "Pilih Semua"
+            const isAllSelected = allItems.every(item => initialSelection.includes(item));
+            selectAllCheckbox.checked = isAllSelected;
+
+            // --- 2. Tambahkan Item Individual ---
+            allItems.forEach(item => {
+                const isSelected = initialSelection.includes(item);
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `
+                    <input type="checkbox" class="item-checkbox" id="${idPrefix}-${item.replace(/\s+/g, '-')}" value="${item}" ${isSelected ? 'checked' : ''}>
+                    <label for="${idPrefix}-${item.replace(/\s+/g, '-')}" class="w-full">${item}</label>
+                `;
+                listEl.appendChild(listItem);
+            });
+            
+            // --- 3. LOGIKA CHECKBOX CHANGE ---
+            const itemCheckboxes = listEl.querySelectorAll('.item-checkbox');
+
+            // Fungsi untuk update status dan menjalankan callback
+            const handleUpdate = () => {
+                let newSelection = Array.from(listEl.querySelectorAll('.item-checkbox:checked')).map(cb => cb.value);
+                
+                if (newSelection.length === 0) {
+                     // Jika tidak ada yang dipilih, paksa setidaknya satu item (item pertama) untuk dipilih
+                     const firstItemCheckbox = itemCheckboxes[0];
+                     if (firstItemCheckbox) { // Safety check
+                         firstItemCheckbox.checked = true;
+                         newSelection = [firstItemCheckbox.value];
+                         alert(`Harap pilih minimal satu ${idPrefix}.`);
+                     }
+                }
+                
+                const currentTotalSelected = newSelection.length;
+                selectAllCheckbox.checked = (currentTotalSelected === allItems.length);
+                
+                updateButtonText(idPrefix, newSelection, allItems.length); // Kirim newSelection
+                
+                callback(newSelection);
+            };
+
+            // Event listener untuk item individual
+            itemCheckboxes.forEach(cb => {
+                cb.addEventListener('change', handleUpdate);
+            });
+
+            // Event listener untuk "Pilih Semua"
+            selectAllCheckbox.addEventListener('change', (e) => {
+                const checked = e.target.checked;
+                itemCheckboxes.forEach(cb => {
+                    cb.checked = checked;
+                });
+                
+                // Panggil handleUpdate (akan menjalankan callback)
+                handleUpdate();
+            });
+
+
+            // 4. Update text saat inisialisasi
+            updateButtonText(idPrefix, initialSelection, allItems.length);
+
+            // 5. Handle Button Click (Toggle List)
+            if (btnEl) {
+                btnEl.onclick = (e) => {
+                    e.stopPropagation();
+                    listEl.classList.toggle('open');
+                };
+            }
+            
+            // 6. Close list when clicking outside
+            document.addEventListener('click', (e) => {
+                const container = document.getElementById(`${idPrefix}-multi-select`).closest('.select-container');
+                if (container && !container.contains(e.target)) {
+                    listEl.classList.remove('open');
+                }
+            });
+        }
+
+        /**
+         * Memperbarui teks pada tombol multi-select
+         */
+        function updateButtonText(idPrefix, selectedItems, totalCount) {
+            const btnTextEl = document.getElementById(`${idPrefix}-btn-text`);
+            const selectedCount = selectedItems.length;
+            
+            if (btnTextEl) {
+                const entityName = idPrefix.charAt(0).toUpperCase() + idPrefix.slice(1);
+                
+                if (selectedCount === totalCount) {
+                    btnTextEl.textContent = `Semua ${entityName} (${totalCount})`;
+                } else if (selectedCount === 1) {
+                    btnTextEl.textContent = `${selectedItems[0]}`;
+                } else {
+                    // Tampilkan 2 yang pertama, diikuti hitungan jika lebih dari 2
+                    if (selectedCount === 2) {
+                        btnTextEl.textContent = `${selectedItems[0]}, ${selectedItems[1]} (2)`;
+                    } else {
+                        btnTextEl.textContent = `${selectedItems[0]}, ${selectedItems[1]}... (${selectedCount})`;
+                    }
+                }
+            }
+        }
+        
+        /**
+         * Setup untuk Dropdown Single Select (View Period)
+         */
+        function setupSingleSelect(idPrefix, initialSelection, callback) {
+            const listEl = document.getElementById(`${idPrefix}-list`);
+            const btnEl = document.getElementById(`${idPrefix}-select`);
+            const btnTextEl = document.getElementById(`${idPrefix}-btn-text`);
+            
+            // Fungsi pembantu untuk mendapatkan label yang benar
+            const getPeriodLabel = (period) => {
+                if (period === 'daily') return 'Harian';
+                if (period === 'weekly') return 'Mingguan';
+                if (period === 'monthly') return 'Bulanan';
+                if (period === 'quarterly') return 'Triwulanan';
+                if (period === 'semiannual') return 'Semesteran';
+                if (period === 'annual') return 'Tahunan';
+                return 'Harian';
+            };
+
+            btnTextEl.textContent = getPeriodLabel(initialSelection);
+
+            Array.from(listEl.querySelectorAll('li')).forEach(item => {
+                item.addEventListener('click', () => {
+                    const newValue = item.getAttribute('data-value');
+                    if (newValue !== currentViewPeriod) {
+                        currentViewPeriod = newValue;
+                        btnTextEl.textContent = getPeriodLabel(newValue);
+                        listEl.classList.remove('open');
+                        callback(newValue);
+                    } else {
+                        listEl.classList.remove('open');
+                    }
+                });
+            });
+
+            if (btnEl) {
+                btnEl.onclick = (e) => {
+                    e.stopPropagation();
+                    listEl.classList.toggle('open');
+                };
+            }
+
+            document.addEventListener('click', (e) => {
+                const container = document.getElementById(`${idPrefix}-select`).closest('.select-container');
+                if (container && !container.contains(e.target)) {
+                    listEl.classList.remove('open');
+                }
+            });
+        }
+
+
+        function initializeDefaults() {
+            console.log("1. initializeDefaults running with new defaults...");
+            console.log(`Default Debitur: ${selectedDebitors.join(', ')}`);
+            console.log(`Default Unit: ${selectedUnits.join(', ')}`);
+
+            // 1. Inisialisasi Filter View Period
+            setupSingleSelect('view-period', currentViewPeriod, (newPeriod) => {
+                updateDateRangeForPeriod();
+                updatePendapatanChart();
+            });
+
+            // 2. Inisialisasi Date Picker & Update Label
+            updateDateRangeForPeriod();
+            
+            // 3. Inisialisasi Filter Debitur (Level 1)
+            setupMultiSelect('debitur', ALL_DEBITURS, selectedDebitors, (newSelection) => {
+                selectedDebitors = newSelection;
+                updatePendapatanChart(); // Redraw Level 1
+            });
+
+            // 4. Inisialisasi Filter Unit (Level 2 - untuk drilldown)
+            // Walaupun tidak terlihat, perlu diinisialisasi untuk mengatur teks tombol default
+             setupMultiSelect('unit', ALL_UNITS, selectedUnits, (newSelection) => {
+                selectedUnits = newSelection;
+                // Callback ini hanya dipanggil jika filter Unit diubah saat mode drilldown, 
+                // jadi tidak perlu memanggil updatePendapatanChart() (Level 1)
+                // Jika user berhasil mengubah ini, chart akan otomatis ter-redraw di showUnitBreakdownChart
+            });
+
+            // 5. Inisialisasi Filter Poli (Level 3 - untuk level 3)
+             setupMultiSelect('poli', POLI_NAMES, selectedPoli, (newSelection) => {
+                selectedPoli = newSelection;
+                 // Callback ini hanya dipanggil jika filter Poli diubah saat mode level 3
+            });
+
+
+            // 6. Gambar Chart Awal (Level Main)
+            updatePendapatanChart();
+            
+            // 7. Event Listener Tombol Kembali
+            document.getElementById('backButton').addEventListener('click', () => {
+                if (currentLevel === 'level3') {
+                    const { label, debtor } = drilldownContext;
+                    // Reset Poli filter saat kembali dari Level 3 ke Level 2
+                    // Biarkan selectedPoli tetap dipertahankan jika tidak ada perubahan, 
+                    // tetapi kita akan mereset tampilan UI ke multi-select default unit
+                    selectedPoli = [...POLI_NAMES]; // Reset logika filter untuk memudahkan
+
+                    // Panggil ulang Level 2 untuk menampilkan chart
+                    const debtorData = dailyChartData.unitBreakdown[label]?.[debtor];
+                    if (debtorData && debtorData.unitBreakdown) {
+                         // Redraw Level 2
+                         showUnitBreakdownChart(label, debtor); 
+                    } else {
+                        // Kembali ke Level 1 jika data tidak ada (kasus error)
+                         selectedUnits = ['Rawat Jalan', 'Rawat Inap']; // Reset logika filter
+                         updatePendapatanChart();
+                    }
+
+                } else if (currentLevel === 'drilldown') {
+                    // Reset Unit filter saat kembali dari Level 2 ke Level 1
+                    selectedUnits = ['Rawat Jalan', 'Rawat Inap']; // Reset ke default yang diminta user
+                    updatePendapatanChart();
+                }
+            });
+
+            // 8. Event Listener Download
+            document.getElementById('pendapatanDownloadChart').addEventListener('click', function() {
+                const button = this;
+                const icon = button.querySelector('i');
+                const originalIcon = 'icon-download text-lg'; 
+
+                button.disabled = true;
+                button.style.opacity = '0.6';
+                button.style.cursor = 'not-allowed';
+
+                icon.className = 'icon-spinner2 spinner text-lg'; 
+
+                setTimeout(async () => {
+                    try {
+                        await downloadPendapatanChart();
+                    } catch (error) {
+                        console.error('Download failed:', error);
+                    } finally {
+                        icon.className = originalIcon;
+                        button.disabled = false;
+                        button.style.opacity = '';
+                        button.style.cursor = '';
+                    }
+                }, 0);
+            });
+        }
+
+        // Run initialization when DOM is ready
+        document.addEventListener('DOMContentLoaded', initializeDefaults);
+        
+        // Custom Alert Function (Ganti alert bawaan)
+        function alert(message) {
+            const modal = document.getElementById('download-modal');
+            const messageEl = document.getElementById('download-message');
+            messageEl.textContent = message;
+            
+            const titleEl = modal.querySelector('h3');
+            titleEl.textContent = "Perhatian";
+
+            const closeBtn = modal.querySelector('button');
+            closeBtn.textContent = "OK";
+            closeBtn.onclick = () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            };
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+    </script>
+</body>
+</html>
