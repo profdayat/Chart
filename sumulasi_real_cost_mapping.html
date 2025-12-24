@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi ECharts Drill-Down Pendapatan</title>
+    <!-- Memuat Tailwind CSS untuk styling yang cepat dan responsif -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Memuat ECharts library yang dibutuhkan oleh kode simulasi -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        /* Gaya kustom untuk tampilan yang lebih baik */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Abu-abu terang */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 900px; /* Lebar lebih besar untuk grafik */
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            padding: 0;
+        }
+        /* Style untuk wadah grafik ECharts */
+        #chart-container {
+            display: block;
+            width: 100%;
+            height: 500px; /* Sedikit lebih tinggi untuk mengakomodasi data */
+            background-color: #ffffff;
+            border-bottom-left-radius: 1rem;
+            border-bottom-right-radius: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Header aplikasi -->
+        <header class="p-4 bg-blue-600 text-white rounded-t-xl">
+            <h1 class="text-2xl font-bold">Simulasi Visualisasi Pendapatan (Drill-Down)</h1>
+            <p class="text-sm opacity-90">Klik pada tanggal atau bar untuk menelusuri sumber pendapatan lebih dalam.</p>
+        </header>
+
+        <!-- Wadah DIV tempat grafik ECharts akan ditampilkan -->
+        <div id="chart-container" class="w-full"></div>
+    </div>
+
+    <script>
+        // Inisialisasi ECharts pada wadah div
+        const chartDom = document.getElementById('chart-container');
+        const myChart = echarts.init(chartDom);
+        
+        // Pastikan grafik menyesuaikan saat ukuran jendela berubah
+        window.addEventListener('resize', () => {
+            myChart.resize();
+        });
+
+        // =========================================================================
+        // DATA HIERARKIS BARU (ARRAY DENGAN TANGGAL)
+        // =========================================================================
+
+        const rawData = [
+          {
+            "name": "PENDAPATAN",
+            "level": 0,
+            "date": "2025-12-14",
+            "value": 266490000,
+            "list": [
+              {
+                "name": "PROPINSI JATIM",
+                "level": 1,
+                "value": 11025000,
+                "list": [
+                  {"name": "BIAKESMASKIN", "level": 2, "value": 3150000},
+                  {"name": "TB MDR/TB RO", "level": 2, "value": 5250000},
+                  {"name": "HIV VIRALLOAD", "level": 2, "value": 1575000},
+                  {"name": "HIV IED", "level": 2, "value": 1050000}
+                ]
+              },
+              {
+                "name": "DIKLAT",
+                "level": 1,
+                "value": 2100000,
+                "list": [
+                  {"name": "PKL", "level": 2, "value": 840000},
+                  {"name": "PENELITIAN", "level": 2, "value": 1260000}
+                ]
+              },
+              {
+                "name": "JKN",
+                "level": 1,
+                "value": 78750000,
+                "list": [
+                  {"name": "REGULER", "level": 2, "value": 10500000},
+                  {"name": "OBAT KRONIS", "level": 2, "value": 15750000},
+                  {"name": "OBAT KEMOTERAPI", "level": 2, "value": 21000000},
+                  {"name": "AMBULANS RUJUKAN", "level": 2, "value": 3150000},
+                  {"name": "ALAT BANTU DENGAR", "level": 2, "value": 1575000},
+                  {"name": "KORSET", "level": 2, "value": 1050000},
+                  {"name": "CERVICAL COLLER", "level": 2, "value": 1050000},
+                  {"name": "ALTAPLASE", "level": 2, "value": 12600000},
+                  {"name": "CAPD RUTIN", "level": 2, "value": 8400000},
+                  {"name": "CAPD TRANSFER SET", "level": 2, "value": 2625000},
+                  {"name": "KANTONG DARAH", "level": 2, "value": 4200000}
+                ]
+              },
+              {
+                "name": "BPJS TK",
+                "level": 1,
+                "value": 5250000
+              },
+              {
+                "name": "KERJASAMA",
+                "level": 1,
+                "value": 18900000,
+                "list": [
+                  {"name": "PERUSAHAAN", "level": 2, "value": 6300000},
+                  {"name": "ASURANSI SWASTA", "level": 2, "value": 8400000},
+                  {
+                    "name": "PEMANFAATAN BMD",
+                    "level": 2,
+                    "value": 4200000,
+                    "list": [
+                      {"name": "SEWA RUANGAN", "level": 3, "value": 1575000},
+                      {"name": "SEWA BANGUNAN", "level": 3, "value": 2625000}
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "UMUM",
+                "level": 1,
+                "value": 147315000,
+                "list": [
+                  {
+                    "name": "RAWAT JALAN",
+                    "level": 2,
+                    "value": 13650000,
+                    "list": [
+                      {"name": "REGULER", "level": 3, "value": 5250000},
+                      {"name": "EKSEKUTIF", "level": 3, "value": 8400000}
+                    ]
+                  },
+                  {
+                    "name": "RAWAT INAP",
+                    "level": 2,
+                    "value": 42000000,
+                    "list": [
+                      {"name": "REGULER", "level": 3, "value": 15750000},
+                      {"name": "EKSEKUTIF", "level": 3, "value": 26250000}
+                    ]
+                  },
+                  {
+                    "name": "PENUNJANG",
+                    "level": 2,
+                    "value": 73290000,
+                    "list": [
+                      {
+                        "name": "MEDIS",
+                        "level": 3,
+                        "value": 50925000,
+                        "list": [
+                          {
+                            "name": "RADIOLOGI",
+                            "level": 4,
+                            "value": 12075000,
+                            "list": [
+                              {"name": "REGULER", "level": 5, "value": 4200000},
+                              {"name": "EKSEKUTIF", "level": 5, "value": 7875000}
+                            ]
+                          },
+                          {
+                            "name": "LABORATORIUM",
+                            "level": 4,
+                            "value": 10500000,
+                            "list": [
+                              {"name": "REGULER", "level": 5, "value": 3675000},
+                              {"name": "EKSEKUTIF", "level": 5, "value": 6825000}
+                            ]
+                          },
+                          {
+                            "name": "FARMASI",
+                            "level": 4,
+                            "value": 26250000,
+                            "list": [
+                              {"name": "REGULER", "level": 5, "value": 10500000},
+                              {"name": "EKSEKUTIF", "level": 5, "value": 15750000}
+                            ]
+                          },
+                          {"name": "BANK DARAH", "level": 4, "value": 2100000}
+                        ]
+                      },
+                      {
+                        "name": "NON MEDIK",
+                        "level": 3,
+                        "value": 22365000,
+                        "list": [
+                          {
+                            "name": "AMBULANCE",
+                            "level": 4,
+                            "value": 1575000,
+                            "list": [
+                              {"name": "TRANSPOR/BEST", "level": 5, "value": 1575000}
+                            ]
+                          },
+                          {"name": "JENAZAH", "level": 4, "value": 1050000},
+                          {"name": "CAFE CAPTEN", "level": 4, "value": 2625000},
+                          {
+                            "name": "INSTALASI GIZI",
+                            "level": 4,
+                            "value": 2415000,
+                            "list": [
+                              {"name": "PRODIGY", "level": 5, "value": 1575000},
+                              {"name": "MINIMARKET", "level": 5, "value": 840000}
+                            ]
+                          },
+                          {"name": "PESANAN LUAR", "level": 4, "value": 1050000},
+                          {"name": "PEMULASARAAN JENAZAH", "level": 4, "value": 1575000},
+                          {"name": "CSSD", "level": 4, "value": 3150000},
+                          {"name": "LAUNDRY", "level": 4, "value": 2625000}
+                        ]
+                      }
+                    ]
+                  },
+                  {"name": "IGD", "level": 2, "value": 7875000},
+                  {"name": "KAMAR OPERASI", "level": 2, "value": 31500000}
+                ]
+              },
+              {
+                "name": "LAIN-LAIN BLUD YANG SAH",
+                "level": 1,
+                "value": 3150000,
+                "list": [
+                  {"name": "PARKIR", "level": 2, "value": 1260000},
+                  {"name": "JASA GIRO", "level": 2, "value": 840000},
+                  {"name": "SAMPAH MEDIS", "level": 2, "value": 525000},
+                  {"name": "BUNGA DEPOSITO", "level": 2, "value": 420000},
+                  {"name": "DENDA KETERLAMBATAN", "level": 2, "value": 105000}
+                ]
+              }
+            ]
+          },
+          {
+            "name": "PENDAPATAN",
+            "level": 0,
+            "date": "2025-12-15",
+            "value": 241110000,
+            "list": [
+              {
+                "name": "PROPINSI JATIM",
+                "level": 1,
+                "value": 9975000,
+                "list": [
+                  {"name": "BIAKESMASKIN", "level": 2, "value": 2850000},
+                  {"name": "TB MDR/TB RO", "level": 2, "value": 4750000},
+                  {"name": "HIV VIRALLOAD", "level": 2, "value": 1425000},
+                  {"name": "HIV IED", "level": 2, "value": 950000}
+                ]
+              },
+              {
+                "name": "DIKLAT",
+                "level": 1,
+                "value": 1900000,
+                "list": [
+                  {"name": "PKL", "level": 2, "value": 760000},
+                  {"name": "PENELITIAN", "level": 2, "value": 1140000}
+                ]
+              },
+              {
+                "name": "JKN",
+                "level": 1,
+                "value": 71250000,
+                "list": [
+                  {"name": "REGULER", "level": 2, "value": 9500000},
+                  {"name": "OBAT KRONIS", "level": 2, "value": 14250000},
+                  {"name": "OBAT KEMOTERAPI", "level": 2, "value": 19000000},
+                  {"name": "AMBULANS RUJUKAN", "level": 2, "value": 2850000},
+                  {"name": "ALAT BANTU DENGAR", "level": 2, "value": 1425000},
+                  {"name": "KORSET", "level": 2, "value": 950000},
+                  {"name": "CERVICAL COLLER", "level": 2, "value": 950000},
+                  {"name": "ALTAPLASE", "level": 2, "value": 11400000},
+                  {"name": "CAPD RUTIN", "level": 2, "value": 7600000},
+                  {"name": "CAPD TRANSFER SET", "level": 2, "value": 2375000},
+                  {"name": "KANTONG DARAH", "level": 2, "value": 3800000}
+                ]
+              },
+              {
+                "name": "BPJS TK",
+                "level": 1,
+                "value": 4750000
+              },
+              {
+                "name": "KERJASAMA",
+                "level": 1,
+                "value": 17100000,
+                "list": [
+                  {"name": "PERUSAHAAN", "level": 2, "value": 5700000},
+                  {"name": "ASURANSI SWASTA", "level": 2, "value": 7600000},
+                  {
+                    "name": "PEMANFAATAN BMD",
+                    "level": 2,
+                    "value": 3800000,
+                    "list": [
+                      {"name": "SEWA RUANGAN", "level": 3, "value": 1425000},
+                      {"name": "SEWA BANGUNAN", "level": 3, "value": 2375000}
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "UMUM",
+                "level": 1,
+                "value": 133285000,
+                "list": [
+                  {
+                    "name": "RAWAT JALAN",
+                    "level": 2,
+                    "value": 12350000,
+                    "list": [
+                      {"name": "REGULER", "level": 3, "value": 4750000},
+                      {"name": "EKSEKUTIF", "level": 3, "value": 7600000}
+                    ]
+                  },
+                  {
+                    "name": "RAWAT INAP",
+                    "level": 2,
+                    "value": 38000000,
+                    "list": [
+                      {"name": "REGULER", "level": 3, "value": 14250000},
+                      {"name": "EKSEKUTIF", "level": 3, "value": 23750000}
+                    ]
+                  },
+                  {
+                    "name": "PENUNJANG",
+                    "level": 2,
+                    "value": 66310000,
+                    "list": [
+                      {
+                        "name": "MEDIS",
+                        "level": 3,
+                        "value": 46075000,
+                        "list": [
+                          {
+                            "name": "RADIOLOGI",
+                            "level": 4,
+                            "value": 10925000,
+                            "list": [
+                              {"name": "REGULER", "level": 5, "value": 3800000},
+                              {"name": "EKSEKUTIF", "level": 5, "value": 7125000}
+                            ]
+                          },
+                          {
+                            "name": "LABORATORIUM",
+                            "level": 4,
+                            "value": 9500000,
+                            "list": [
+                              {"name": "REGULER", "level": 5, "value": 3325000},
+                              {"name": "EKSEKUTIF", "level": 5, "value": 6175000}
+                            ]
+                          },
+                          {
+                            "name": "FARMASI",
+                            "level": 4,
+                            "value": 23750000,
+                            "list": [
+                              {"name": "REGULER", "level": 5, "value": 9500000},
+                              {"name": "EKSEKUTIF", "level": 5, "value": 14250000}
+                            ]
+                          },
+                          {"name": "BANK DARAH", "level": 4, "value": 1900000}
+                        ]
+                      },
+                      {
+                        "name": "NON MEDIK",
+                        "level": 3,
+                        "value": 20235000,
+                        "list": [
+                          {
+                            "name": "AMBULANCE",
+                            "level": 4,
+                            "value": 1425000,
+                            "list": [
+                              {"name": "TRANSPOR/BEST", "level": 5, "value": 1425000}
+                            ]
+                          },
+                          {"name": "JENAZAH", "level": 4, "value": 950000},
+                          {"name": "CAFE CAPTEN", "level": 4, "value": 2375000},
+                          {
+                            "name": "INSTALASI GIZI",
+                            "level": 4,
+                            "value": 2185000,
+                            "list": [
+                              {"name": "PRODIGY", "level": 5, "value": 1425000},
+                              {"name": "MINIMARKET", "level": 5, "value": 760000}
+                            ]
+                          },
+                          {"name": "PESANAN LUAR", "level": 4, "value": 950000},
+                          {"name": "PEMULASARAAN JENAZAH", "level": 4, "value": 1425000},
+                          {"name": "CSSD", "level": 4, "value": 2850000},
+                          {"name": "LAUNDRY", "level": 4, "value": 2375000}
+                        ]
+                      }
+                    ]
+                  },
+                  {"name": "IGD", "level": 2, "value": 7125000},
+                  {"name": "KAMAR OPERASI", "level": 2, "value": 28500000}
+                ]
+              },
+              {
+                "name": "LAIN-LAIN BLUD YANG SAH",
+                "level": 1,
+                "value": 2850000,
+                "list": [
+                  {"name": "PARKIR", "level": 2, "value": 1140000},
+                  {"name": "JASA GIRO", "level": 2, "value": 760000},
+                  {"name": "SAMPAH MEDIS", "level": 2, "value": 475000},
+                  {"name": "BUNGA DEPOSITO", "level": 2, "value": 380000},
+                  {"name": "DENDA KETERLAMBATAN", "level": 2, "value": 95000}
+                ]
+              }
+            ]
+          },
+          {
+            "name": "PENDAPATAN",
+            "level": 0,
+            "date": "2025-12-16",
+            "value": 253800000,
+            "list": [
+              {
+                "name": "PROPINSI JATIM",
+                "level": 1,
+                "value": 10500000,
+                "list": [
+                  {"name": "BIAKESMASKIN", "level": 2, "value": 3000000},
+                  {"name": "TB MDR/TB RO", "level": 2, "value": 5000000},
+                  {"name": "HIV VIRALLOAD", "level": 2, "value": 1500000},
+                  {"name": "HIV IED", "level": 2, "value": 1000000}
+                ]
+              },
+              {
+                "name": "DIKLAT",
+                "level": 1,
+                "value": 2000000,
+                "list": [
+                  {"name": "PKL", "level": 2, "value": 800000},
+                  {"name": "PENELITIAN", "level": 2, "value": 1200000}
+                ]
+              },
+              {
+                "name": "JKN",
+                "level": 1,
+                "value": 75000000,
+                "list": [
+                  {"name": "REGULER", "level": 2, "value": 10000000},
+                  {"name": "OBAT KRONIS", "level": 2, "value": 15000000},
+                  {"name": "OBAT KEMOTERAPI", "level": 2, "value": 20000000},
+                  {"name": "AMBULANS RUJUKAN", "level": 2, "value": 3000000},
+                  {"name": "ALAT BANTU DENGAR", "level": 2, "value": 1500000},
+                  {"name": "KORSET", "level": 2, "value": 1000000},
+                  {"name": "CERVICAL COLLER", "level": 2, "value": 1000000},
+                  {"name": "ALTAPLASE", "level": 2, "value": 12000000},
+                  {"name": "CAPD RUTIN", "level": 2, "value": 8000000},
+                  {"name": "CAPD TRANSFER SET", "level": 2, "value": 2500000},
+                  {"name": "KANTONG DARAH", "level": 2, "value": 4000000}
+                ]
+              },
+              {
+                "name": "BPJS TK",
+                "level": 1,
+                "value": 5000000
+              },
+              {
+                "name": "KERJASAMA",
+                "level": 1,
+                "value": 18000000,
+                "list": [
+                  {"name": "PERUSAHAAN", "level": 2, "value": 6000000},
+                  {"name": "ASURANSI SWASTA", "level": 2, "value": 8000000},
+                  {
+                    "name": "PEMANFAATAN BMD",
+                    "level": 2,
+                    "value": 4000000,
+                    "list": [
+                      {"name": "SEWA RUANGAN", "level": 3, "value": 1500000},
+                      {"name": "SEWA BANGUNAN", "level": 3, "value": 2500000}
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "UMUM",
+                "level": 1,
+                "value": 140300000,
+                "list": [
+                  {
+                    "name": "RAWAT JALAN",
+                    "level": 2,
+                    "value": 13000000,
+                    "list": [
+                      {"name": "REGULER", "level": 3, "value": 5000000},
+                      {"name": "EKSEKUTIF", "level": 3, "value": 8000000}
+                    ]
+                  },
+                  {
+                    "name": "RAWAT INAP",
+                    "level": 2,
+                    "value": 40000000,
+                    "list": [
+                      {"name": "REGULER", "level": 3, "value": 15000000},
+                      {"name": "EKSEKUTIF", "level": 3, "value": 25000000}
+                    ]
+                  },
+                  {
+                    "name": "PENUNJANG",
+                    "level": 2,
+                    "value": 69800000,
+                    "list": [
+                      {
+                        "name": "MEDIS",
+                        "level": 3,
+                        "value": 48500000,
+                        "list": [
+                          {
+                            "name": "RADIOLOGI",
+                            "level": 4,
+                            "value": 11500000,
+                            "list": [
+                              {"name": "REGULER", "level": 5, "value": 4000000},
+                              {"name": "EKSEKUTIF", "level": 5, "value": 7500000}
+                            ]
+                          },
+                          {
+                            "name": "LABORATORIUM",
+                            "level": 4,
+                            "value": 10000000,
+                            "list": [
+                              {"name": "REGULER", "level": 5, "value": 3500000},
+                              {"name": "EKSEKUTIF", "level": 5, "value": 6500000}
+                            ]
+                          },
+                          {
+                            "name": "FARMASI",
+                            "level": 4,
+                            "value": 25000000,
+                            "list": [
+                              {"name": "REGULER", "level": 5, "value": 10000000},
+                              {"name": "EKSEKUTIF", "level": 5, "value": 15000000}
+                            ]
+                          },
+                          {"name": "BANK DARAH", "level": 4, "value": 2000000}
+                        ]
+                      },
+                      {
+                        "name": "NON MEDIK",
+                        "level": 3,
+                        "value": 21300000,
+                        "list": [
+                          {
+                            "name": "AMBULANCE",
+                            "level": 4,
+                            "value": 1500000,
+                            "list": [
+                              {"name": "TRANSPOR/BEST", "level": 5, "value": 1500000}
+                            ]
+                          },
+                          {"name": "JENAZAH", "level": 4, "value": 1000000},
+                          {"name": "CAFE CAPTEN", "level": 4, "value": 2500000},
+                          {
+                            "name": "INSTALASI GIZI",
+                            "level": 4,
+                            "value": 2300000,
+                            "list": [
+                              {"name": "PRODIGY", "level": 5, "value": 1500000},
+                              {"name": "MINIMARKET", "level": 5, "value": 800000}
+                            ]
+                          },
+                          {"name": "PESANAN LUAR", "level": 4, "value": 1000000},
+                          {"name": "PEMULASARAAN JENAZAH", "level": 4, "value": 1500000},
+                          {"name": "CSSD", "level": 4, "value": 3000000},
+                          {"name": "LAUNDRY", "level": 4, "value": 2500000}
+                        ]
+                      }
+                    ]
+                  },
+                  {"name": "IGD", "level": 2, "value": 7500000},
+                  {"name": "KAMAR OPERASI", "level": 2, "value": 30000000}
+                ]
+              },
+              {
+                "name": "LAIN-LAIN BLUD YANG SAH",
+                "level": 1,
+                "value": 3000000,
+                "list": [
+                  {"name": "PARKIR", "level": 2, "value": 1200000},
+                  {"name": "JASA GIRO", "level": 2, "value": 800000},
+                  {"name": "SAMPAH MEDIS", "level": 2, "value": 500000},
+                  {"name": "BUNGA DEPOSITO", "level": 2, "value": 400000},
+                  {"name": "DENDA KETERLAMBATAN", "level": 2, "value": 100000}
+                ]
+              }
+            ]
+          }
+        ];
+
+        // =========================================================================
+        // FUNGSI UTILITY (PRE-PROCESSING)
+        // =========================================================================
+
+        /**
+         * Mengubah nilai numerik menjadi format Rupiah.
+         */
+        const formatRupiah = (number) => {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(number);
+        };
+        
+        /**
+         * Secara rekursif memproses data JSON hirarkis menjadi map datar.
+         * Menggunakan Unique ID (path-based) untuk kunci map agar data dengan nama sama
+         * di tanggal berbeda tidak saling menimpa.
+         * * @param {Object} node - Node data saat ini (memiliki properti list)
+         * @param {string} currentId - ID Unik untuk grup data node ini (misal: 'ROOT' atau '2025-12-14_JATIM')
+         */
+        const processedDataMap = {};
+        
+        function processNode(node, currentId) {
+            // Jika node tidak memiliki anak, berhenti.
+            if (!node.list || node.list.length === 0) return;
+
+            const chartData = [];
+            
+            node.list.forEach(child => {
+                // Tentukan nama tampilan.
+                // Untuk level 0, gunakan 'date'. Untuk level selanjutnya, gunakan 'name'.
+                const childDisplayName = child.date || child.name;
+                
+                // Buat Unique ID untuk anak ini.
+                // ID ini akan menjadi kunci untuk membuka 'list' milik anak tersebut.
+                // Contoh: ROOT -> 2025-12-14
+                // Contoh: 2025-12-14 -> 2025-12-14_PROPINSI JATIM
+                const childUniqueId = currentId === 'ROOT' 
+                    ? childDisplayName 
+                    : `${currentId}_${childDisplayName}`;
+                
+                const hasChildren = child.list && child.list.length > 0;
+                
+                // Format Data ECharts: [Name, Value, ChildGroupId]
+                // ChildGroupId hanya disertakan jika anak tersebut memiliki list sendiri.
+                chartData.push([
+                    childDisplayName,
+                    child.value,
+                    hasChildren ? childUniqueId : undefined
+                ]);
+                
+                // Rekursi jika punya anak
+                if (hasChildren) {
+                    processNode(child, childUniqueId);
+                }
+            });
+
+            // Simpan konfigurasi untuk Group ID ini
+            processedDataMap[currentId] = {
+                dataGroupId: currentId,
+                data: chartData
+            };
+        }
+
+        // Bungkus array rawData ke dalam objek root sintetis untuk memulai proses
+        const syntheticRoot = {
+            list: rawData
+        };
+
+        // Mulai pemrosesan data dari 'ROOT'
+        processNode(syntheticRoot, 'ROOT');
+        
+        // Data Groups sekarang adalah nilai-nilai dari processedDataMap
+        const allDataGroups = Object.values(processedDataMap);
+        
+        // =========================================================================
+        // LOGIKA ECHARTS (DRILL DOWN)
+        // =========================================================================
+
+        // Objek untuk menyimpan semua konfigurasi opsi
+        const allOptionsWithItemGroupId = {};
+        const allOptionsWithoutItemGroupId = {};
+
+        // Generate opsi untuk setiap grup data
+        allDataGroups.forEach((dataGroup) => {
+            const { dataGroupId, data } = dataGroup;
+            
+            // Logika Judul Dinamis
+            let titleText = '';
+            let subText = '';
+            
+            if (dataGroupId === 'ROOT') {
+                titleText = 'Total Pendapatan Harian';
+                // Hitung total semua tanggal untuk subtext
+                const totalAll = data.reduce((sum, item) => sum + item[1], 0);
+                subText = `Total Keseluruhan: ${formatRupiah(totalAll)}`;
+            } else {
+                // Ambil bagian terakhir dari ID unik untuk judul (misal: ambil "PROPINSI JATIM" dari "2025-12-14_PROPINSI JATIM")
+                const nameParts = dataGroupId.split('_');
+                const displayName = nameParts[nameParts.length - 1];
+                // Jika ID-nya tanggal (misal "2025-12-14"), tampilkan tanggalnya
+                // Jika ID-nya path (misal "2025-12-14_JATIM"), tampilkan nama node terakhir
+                titleText = nameParts.length === 1 ? `Pendapatan Tanggal ${displayName}` : `Rincian: ${displayName}`;
+                
+                // Total untuk grup ini
+                const totalGroup = data.reduce((sum, item) => sum + item[1], 0);
+                subText = `Total: ${formatRupiah(totalGroup)}`;
+            }
+
+            // Konfigurasi umum untuk Tooltip
+            const tooltipConfig = {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: function(params) {
+                    const item = params[0];
+                    return `<strong>${item.name}</strong><br/>${item.seriesName}: ${formatRupiah(item.value[1])}`;
+                }
+            };
+
+            // Opsi 1: Dengan itemGroupId (target transisi)
+            const optionWithItemGroupId = {
+                title: {
+                    text: titleText,
+                    subtext: subText,
+                    left: 'center',
+                    textStyle: { fontSize: 16 }
+                },
+                tooltip: tooltipConfig,
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    axisLabel: {
+                        interval: 0,
+                        rotate: 30, 
+                        margin: 10,
+                        formatter: function(value) {
+                            // Potong label jika terlalu panjang agar rapi
+                            return value.length > 15 ? value.substring(0, 15) + '...' : value;
+                        }
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: {
+                        formatter: function(value) {
+                            if (value >= 1000000000) return formatRupiah(value / 1000000000) + ' M';
+                            else if (value >= 1000000) return formatRupiah(value / 1000000) + ' Jt';
+                            return formatRupiah(value);
+                        }
+                    }
+                },
+                animationDurationUpdate: 500,
+                series: {
+                    name: 'Nilai',
+                    type: 'bar',
+                    dataGroupId: dataGroupId,
+                    encode: {
+                        x: 0,
+                        y: 1,
+                        itemGroupId: 2 // Kolom ke-3 berisi Child ID untuk drill-down
+                    },
+                    data: data,
+                    universalTransition: {
+                        enabled: true,
+                        divideShape: 'clone'
+                    },
+                    itemStyle: {
+                        // Memberikan warna berbeda jika di Root (Tanggal)
+                        color: dataGroupId === 'ROOT' ? '#3b82f6' : '#6366f1'
+                    }
+                },
+                graphic: [
+                    {
+                        type: 'text',
+                        left: 50,
+                        top: 20,
+                        style: {
+                            text: dataGroupId === 'ROOT' ? 'Root' : '← Kembali',
+                            fontSize: 18,
+                            fill: dataGroupId === 'ROOT' ? '#9ca3af' : '#2563eb', 
+                            fontWeight: 'bold',
+                            cursor: dataGroupId === 'ROOT' ? 'default' : 'pointer'
+                        },
+                        onclick: function () {
+                            if (dataGroupId !== 'ROOT') {
+                                goBack();
+                            }
+                        }
+                    }
+                ]
+            };
+
+            // Opsi 2: Tanpa itemGroupId (sumber transisi)
+            const optionWithoutItemGroupId = JSON.parse(JSON.stringify(optionWithItemGroupId));
+            optionWithoutItemGroupId.series.encode = { x: 0, y: 1 };
+            optionWithoutItemGroupId.series.data = data.map((item) => {
+                return item.slice(0, 2); // Hanya ambil [Nama, Value]
+            });
+
+            allOptionsWithItemGroupId[dataGroupId] = optionWithItemGroupId;
+            allOptionsWithoutItemGroupId[dataGroupId] = optionWithoutItemGroupId;
+        });
+
+        // Stack untuk menyimpan history navigasi
+        const dataGroupIdStack = [];
+
+        /**
+         * Drill Down ke level berikutnya.
+         */
+        const goForward = (dataGroupId) => {
+            const currentDataGroupId = myChart.getOption().series[0].dataGroupId;
+            
+            // Validasi: Apakah target grup ada?
+            if (!allOptionsWithItemGroupId[dataGroupId]) {
+                console.log(`Grup data "${dataGroupId}" adalah level terakhir (Leaf Node).`);
+                return;
+            }
+            
+            dataGroupIdStack.push(currentDataGroupId); 
+            
+            // Transisi mulus ECharts
+            myChart.setOption(allOptionsWithoutItemGroupId[dataGroupId], false);
+            myChart.setOption(allOptionsWithItemGroupId[dataGroupId], false); 
+        };
+
+        /**
+         * Drill Up (Kembali) ke level sebelumnya.
+         */
+        const goBack = () => {
+            if (dataGroupIdStack.length === 0) {
+                console.log('Sudah berada di data root!');
+            } else {
+                const previousDataGroupId = dataGroupIdStack.pop();
+                
+                myChart.setOption(
+                    allOptionsWithoutItemGroupId[myChart.getOption().series[0].dataGroupId],
+                    false
+                );
+                myChart.setOption(allOptionsWithItemGroupId[previousDataGroupId], false); 
+            }
+        };
+
+        // Opsi awal adalah grup 'ROOT' (Tanggal)
+        let initialOption = allOptionsWithItemGroupId['ROOT'];
+
+        // Handler klik
+        myChart.on('click', 'series.bar', (params) => {
+            // params.data[2] berisi Child Unique ID
+            if (params.data && params.data[2]) {
+                goForward(params.data[2]);
+            }
+        });
+
+        // Render awal
+        if (initialOption) {
+            myChart.setOption(initialOption);
+        } else {
+            console.error("Gagal inisialisasi. Cek struktur data.");
+        }
+
+    </script>
+</body>
+</html>
